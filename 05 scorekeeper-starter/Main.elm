@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import String
 import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
@@ -60,8 +61,81 @@ update msg model =
         Input val ->
             { model | playerName = val }
 
+        Cancel ->
+            { model | playerName = "", playerId = Nothing }
+
+        Save ->
+            if (String.isEmpty model.playerName) then
+                model
+            else
+                save model
+
         _ ->
             model
+
+
+save : Model -> Model
+save model =
+    case model.playerId of
+        Just id ->
+            edit model id
+
+        -- if model.playerId == Nothing then
+        Nothing ->
+            add model
+
+
+edit : Model -> Int -> Model
+edit model id =
+    let
+        newPlayers =
+            List.map
+                (\player ->
+                    if player.id == id then
+                        { player | name = model.playerName }
+                    else
+                        player
+                )
+                model.players
+
+        newPlays =
+            List.map
+                (\play ->
+                    if play.playerId == id then
+                        { play | playerName = model.playerName }
+                    else
+                        play
+                )
+                model.plays
+    in
+        { model
+            | players = newPlayers
+            , plays = newPlays
+            , playerName = ""
+            , playerId = Nothing
+        }
+
+
+add : Model -> Model
+add model =
+    let
+        playerId =
+            (List.length model.players) + 1
+
+        newPlayer =
+            -- { id = playerId, name = model.playerName, points = 0 }
+            Player playerId model.playerName 0
+
+        newPlayers =
+            -- ++ operator adds to the end of the List, but is also more expensive
+            -- model.players ++ [ newPlayer ]
+            -- :: (con operator) adds to the beginning of the List
+            newPlayer :: model.players
+    in
+        { model
+            | players = newPlayers
+            , playerName = ""
+        }
 
 
 
