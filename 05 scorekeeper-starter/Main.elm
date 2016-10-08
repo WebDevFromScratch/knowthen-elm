@@ -18,10 +18,16 @@ type alias Model =
     }
 
 
+
+-- alternatively, "editing" could be put as a list in the top level of the Model
+-- (passing it a Maybe playerId and True/False (actually, the Maybe playerId should be enough) )
+
+
 type alias Player =
     { id : Int
     , name : String
     , points : Int
+    , editing : Bool
     }
 
 
@@ -62,16 +68,50 @@ update msg model =
             { model | playerName = val }
 
         Cancel ->
-            { model | playerName = "", playerId = Nothing }
+            let
+                newPlayers =
+                    List.map
+                        (\player ->
+                            if player.editing == True then
+                                { player | editing = False }
+                            else
+                                player
+                        )
+                        model.players
+            in
+                { model | players = newPlayers, playerName = "", playerId = Nothing }
 
         Save ->
-            if (String.isEmpty model.playerName) then
-                model
-            else
-                save model
+            -- duplication already
+            let
+                newPlayers =
+                    List.map
+                        (\player ->
+                            if player.editing == True then
+                                { player | editing = False }
+                            else
+                                player
+                        )
+                        model.players
+            in
+                if (String.isEmpty model.playerName) then
+                    { model | players = newPlayers }
+                else
+                    save { model | players = newPlayers }
 
         Edit player ->
-            { model | playerName = player.name, playerId = Just player.id }
+            let
+                newPlayers =
+                    List.map
+                        (\p ->
+                            if p.id == player.id then
+                                { p | editing = True }
+                            else
+                                p
+                        )
+                        model.players
+            in
+                { model | players = newPlayers, playerName = player.name, playerId = Just player.id }
 
         Score player points ->
             score model player points
@@ -177,7 +217,7 @@ add model =
 
         newPlayer =
             -- { id = playerId, name = model.playerName, points = 0 }
-            Player playerId model.playerName 0
+            Player playerId model.playerName 0 False
 
         newPlayers =
             -- ++ operator adds to the end of the List, but is also more expensive
@@ -202,6 +242,7 @@ view model =
         , playerSection model
         , playerForm model
         , playSection model
+        , text (toString model)
         ]
 
 
@@ -273,27 +314,34 @@ playerList model =
 
 player : Player -> Html Msg
 player player =
-    li []
-        [ i
-            [ class "edit"
-            , onClick (Edit player)
+    let
+        playerClass =
+            if player.editing == True then
+                "edit"
+            else
+                ""
+    in
+        li []
+            [ i
+                [ class "edit"
+                , onClick (Edit player)
+                ]
+                []
+            , div [ class playerClass ]
+                [ text player.name ]
+            , button
+                [ type' "button"
+                , onClick (Score player 2)
+                ]
+                [ text "2pt" ]
+            , button
+                [ type' "button"
+                , onClick (Score player 3)
+                ]
+                [ text "3pt" ]
+            , div []
+                [ text (toString player.points) ]
             ]
-            []
-        , div []
-            [ text player.name ]
-        , button
-            [ type' "button"
-            , onClick (Score player 2)
-            ]
-            [ text "2pt" ]
-        , button
-            [ type' "button"
-            , onClick (Score player 3)
-            ]
-            [ text "3pt" ]
-        , div []
-            [ text (toString player.points) ]
-        ]
 
 
 pointTotal : Model -> Html Msg
@@ -311,23 +359,35 @@ pointTotal model =
 
 playerForm : Model -> Html Msg
 playerForm model =
-    Html.form [ onSubmit Save ]
-        [ input
-            [ type' "text"
-            , placeholder "Add/Edit player.."
-            , onInput Input
-            , value model.playerName
+    let
+        editingList =
+            List.map .editing model.players
+                |> List.filter (\val -> val == True)
+
+        isEditingClass =
+            if editingList == [] then
+                ""
+            else
+                "edit"
+    in
+        Html.form [ onSubmit Save ]
+            [ input
+                [ type' "text"
+                , placeholder "Add/Edit player.."
+                , onInput Input
+                , value model.playerName
+                , class isEditingClass
+                ]
+                []
+            , button
+                [ type' "submit" ]
+                [ text "Save" ]
+            , button
+                [ type' "button"
+                , onClick Cancel
+                ]
+                [ text "Cancel" ]
             ]
-            []
-        , button
-            [ type' "submit" ]
-            [ text "Save" ]
-        , button
-            [ type' "button"
-            , onClick Cancel
-            ]
-            [ text "Cancel" ]
-        ]
 
 
 main : Program Never
